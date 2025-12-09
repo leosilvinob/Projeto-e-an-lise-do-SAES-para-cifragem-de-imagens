@@ -46,7 +46,7 @@ Este documento resume a abordagem, implementação e análise empregadas para ci
    - Consolida métricas em CSV e gera resumo em Markdown.
 
 ## Metodologia
-1. **Pré-processamento**: todas as imagens foram redimensionadas e convertidas para tons de cinza. Isso garante uniformidade para comparação e evita efeitos decorrentes de múltiplos canais.
+1. **Pré-processamento**: todas as imagens foram redimensionadas e convertidas para tons de cinza. Isso garante uniformidade para comparação e evita efeitos decorrentes de múltiplos canais. *Observação:* os nomes (`cactus`, `desert`, etc.) correspondem apenas às sementes determinísticas do Picsum; o conteúdo real pode não representar exatamente o tema indicado, pois as **imagens são aleatórias** dentro daquela semente.
 2. **Chave fixa**: `0x3A94` para todos os modos. IVs/contadores distintos evitam a reutilização de vetores sem relação com cada modo.
 3. **Perturbação mínima**: para NPCR/UACI, um único pixel central sofre incremento circular de +1, refletindo a sensibilidade do modo à pequena alteração.
 4. **Coleta das métricas**: resultados individuais são armazenados em **`outputs/metrics_saes.csv`**, enquanto **`outputs/metrics_summary.md`** contém médias por modo.
