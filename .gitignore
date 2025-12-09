@@ -1,0 +1,7 @@
+# Python artifacts
+__pycache__/
+*.pyc
+
+# Generated data and results
+data/
+outputs/
