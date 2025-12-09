@@ -57,6 +57,32 @@ Este documento resume a abordagem, implementação e análise empregadas para ci
 
 *(valores provenientes de `outputs/metrics_summary.md`)*  
 
+## Resultados Experimentais (Imagens e Histogramas)
+
+### Exemplo 1 — Cena "architecture"
+| Original | ECB | CBC | CTR |
+|---|---|---|---|
+| ![Architecture Original](figures/architecture_original.png) | ![Architecture ECB](figures/architecture_ecb.png) | ![Architecture CBC](figures/architecture_cbc.png) | ![Architecture CTR](figures/architecture_ctr.png) |
+
+| Histograma ECB | Histograma CBC | Histograma CTR |
+|---|---|---|
+| ![Hist ECB](figures/architecture_hist_ecb.png) | ![Hist CBC](figures/architecture_hist_cbc.png) | ![Hist CTR](figures/architecture_hist_ctr.png) |
+
+O modo **ECB** mantém contornos do prédio nitidamente visíveis, enquanto **CBC** destrói as estruturas, gerando ruído visual e um histograma quase plano. O **CTR** mistura bem os níveis de cinza, mas ainda preserva alguma repetição, observada pelos pequenos picos do histograma.
+
+### Exemplo 2 — Cena "mountain"
+| Original | ECB | CBC | CTR |
+|---|---|---|---|
+| ![Mountain Original](figures/mountain_original.png) | ![Mountain ECB](figures/mountain_ecb.png) | ![Mountain CBC](figures/mountain_cbc.png) | ![Mountain CTR](figures/mountain_ctr.png) |
+
+| Histograma CTR |
+|---|
+| ![Hist CTR Mountain](figures/mountain_hist_ctr.png) |
+
+Nesta cena, a diferença entre os modos fica evidente nas regiões homogêneas de céu/neve: **CBC** rompe completamente a continuidade visual, enquanto **CTR** ainda mostra faixas verticais. O histograma do CTR permanece relativamente plano, mas a correlação vertical residual (≈0.46) denunciada na tabela reaparece como padrões repetitivos.
+
+Essas evidências reforçam os números da tabela anterior: modos com realimentação (CBC/CFB) quebram melhor a correlação entre pixels, ao passo que ECB (e, em menor grau, CTR/OFB devido ao bloco de 16 bits) permitem que estruturas do original sobrevivam.
+
 ## Discussão e Conclusões
 1. **Entropia**: CBC, CFB e CTR alcançaram valores médios muito próximos de 8 bits, confirmando distribuição quase uniforme de pixels cifrados. ECB ficou abaixo, revelando que blocos idênticos ainda produzem padrões visíveis devido ao pequeno tamanho de bloco do SAES (16 bits).
 2. **Correlação**:
