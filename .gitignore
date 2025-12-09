@@ -2,6 +2,5 @@
 __pycache__/
 *.pyc
 
-# Generated data and results
-data/
-outputs/
+
+
