@@ -1,13 +1,15 @@
 # Experimento de Cifragem SAES
 
-Este documento resume a abordagem, implementação e análise empregadas para cifrar imagens utilizando o Simplified AES (SAES) em Python, seguindo as orientações dos artigos de referência.
+**Projeto desenvolvido para a cadeira de Criptografia do PPGEE, orientada pelo professor Daniel Chaves, com autoria do aluno Leonardo Silvino.**
+
+Este documento resume a abordagem, implementação e análise empregadas para cifrar imagens utilizando o **Simplified AES (SAES)** em Python, seguindo as orientações dos artigos de referência.
 
 ## Abordagem Geral
 - **Objetivo:** implementar o SAES, aplicar diversos modos de operação (ECB, CBC, CFB, OFB e CTR) em um conjunto de dez imagens em tons de cinza e avaliar quantitativamente/qualitativamente a eficácia de cada modo.
 - **Referências utilizadas:**
-  1. *Image encryption using block cipher and chaotic sequences* — Seção 3 (métricas de segurança) para fundamentar os quantificadores (entropia, correlação, NPCR, UACI) e as análises qualitativas via histograma.
-  2. *Linear Cryptoanalysis of the Simplified AES Cipher Modified by Chaotic Sequences* — Até a Seção II.A para reforçar os detalhes do SAES (S-Box, operações de mistura, agendamento de chaves).
-  3. *On the vulnerability of Simplified AES Algorithm Against Linear Cryptanalysis* — Até a Seção 3 para compreender limitações estruturais do SAES e contextualizar os resultados obtidos.
+  1. ***Image encryption using block cipher and chaotic sequences*** — Seção 3 (métricas de segurança) para fundamentar os quantificadores (entropia, correlação, NPCR, UACI) e as análises qualitativas via histograma.
+  2. ***Linear Cryptoanalysis of the Simplified AES Cipher Modified by Chaotic Sequences*** — Até a Seção II.A para reforçar os detalhes do SAES (S-Box, operações de mistura, agendamento de chaves).
+  3. ***On the vulnerability of Simplified AES Algorithm Against Linear Cryptanalysis*** — Até a Seção 3 para compreender limitações estruturais do SAES e contextualizar os resultados obtidos.
 
 ## Estrutura do Projeto
 ```
@@ -42,7 +44,7 @@ Este documento resume a abordagem, implementação e análise empregadas para ci
 1. **Pré-processamento**: todas as imagens foram redimensionadas e convertidas para tons de cinza. Isso garante uniformidade para comparação e evita efeitos decorrentes de múltiplos canais.
 2. **Chave fixa**: `0x3A94` para todos os modos. IVs/contadores distintos evitam a reutilização de vetores sem relação com cada modo.
 3. **Perturbação mínima**: para NPCR/UACI, um único pixel central sofre incremento circular de +1, refletindo a sensibilidade do modo à pequena alteração.
-4. **Coleta das métricas**: resultados individuais são armazenados em `outputs/metrics_saes.csv`, enquanto `outputs/metrics_summary.md` contém médias por modo.
+4. **Coleta das métricas**: resultados individuais são armazenados em **`outputs/metrics_saes.csv`**, enquanto **`outputs/metrics_summary.md`** contém médias por modo.
 
 ## Resultados Quantitativos (médias por modo)
 | modo | entropia | corr. horizontal | corr. vertical | corr. diagonal | NPCR (%) | UACI (%) |
@@ -67,14 +69,14 @@ Este documento resume a abordagem, implementação e análise empregadas para ci
 4. **Histogramas** (`outputs/histograms/`): visivelmente, os modos com feedback (CBC, CFB) espalham os níveis de cinza de forma uniforme, criando histogramas quase planos. ECB preserva picos semelhantes ao original, enquanto CTR mostra padrão intermediário graças ao contador determinístico.
 
 ### Justificativa dos Resultados
-- O SAES foi concebido apenas para fins didáticos, possuindo bloco pequeno e poucas rodadas, o que reduz difusão/confusão. Assim, mesmo com modos modernos, os quantificadores não atingem níveis de cifras industriais, concordando com as vulnerabilidades discutidas no artigo 3.
+- O SAES foi concebido apenas para fins didáticos, possuindo bloco pequeno e poucas rodadas, o que reduz difusão/confusão. Assim, mesmo com modos modernos, os quantificadores não atingem níveis de cifras industriais, concordando com as vulnerabilidades discutidas no artigo ***On the vulnerability of Simplified AES Algorithm Against Linear Cryptanalysis***.
 - Modos com realimentação (CBC/CFB) distribuem erros e propagam dependências com o IV, garantindo maior quebra de correlação e maior NPCR/UACI, como esperado teoricamente (artigo 1).
 - Modos sem realimentação ou com realimentação limitada (ECB/OFB/CTR) mantêm relações entre blocos consecutivos, o que explica as correlações residuais e a baixa sensibilidade a perturbações. O artigo 2 destaca exatamente esse tipo de fraqueza quando o SAES é usado em cenários com baixa entropia na entrada.
 - Portanto, embora todos os modos produzam entropia alta (por causa da S-Box e permutações), apenas CBC/CFB atingem níveis razoáveis de NPCR/UACI para imagens, demonstrando quantitativa e qualitativamente a importância dos modos de operação na cifragem.
 
 ## Como Reproduzir
-1. Instale as dependências: `pip install -r requirements.txt`
-2. Execute: `python aes.py`
-3. Analise os resultados em `outputs/` e os histogramas correspondentes.
+1. **Instale as dependencias:** `pip install -r requirements.txt`
+2. **Execute:** `python aes.py`
+3. **Analise os resultados em `outputs/` e os histogramas correspondentes.**
 
 Esse fluxo gera automaticamente as imagens, métricas e justificativas necessárias para o relatório final.
