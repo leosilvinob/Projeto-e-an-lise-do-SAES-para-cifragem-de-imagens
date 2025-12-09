@@ -1,10 +1,10 @@
 """
-Simplified AES (SAES) image encryption experiment.
+Experimento de cifragem de imagens usando o Simplified AES (SAES).
 
-This module implements the SAES block cipher, common block cipher modes, and a
-pipeline that downloads a curated set of grayscale images, encrypts each one
-with different operation modes, computes quantifiable security metrics, and
-stores plots/tables for later analysis.
+O modulo implementa o SAES, os principais modos de operacao por blocos e um
+pipeline que baixa dez imagens em tons de cinza, cifra cada uma nos modos
+selecionados, calcula metricas de seguranca quantitativas e gera relatorios
+visuais/tabelas para analise.
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 
+# Caixas S e inversa especificas do SAES (opera sobre nibbles de 4 bits)
 SBOX = [
     0x9,
     0x4,
@@ -65,21 +66,22 @@ INV_SBOX = [
 
 RCON = (0x80, 0x30)
 
+# Matrizes da etapa MixColumns (e inversa) no corpo finito GF(2^4)
 MIX_COL_MATRIX = ((1, 4), (4, 1))
 INV_MIX_COL_MATRIX = ((9, 2), (2, 9))
 
 
 def gf_mul(a: int, b: int) -> int:
-    """Multiply two 4-bit values in GF(2^4) with the x^4 + x + 1 polynomial."""
+    """Multiplica dois valores de 4 bits em GF(2^4) com o polinomio x^4 + x + 1."""
 
     p = 0
     for _ in range(4):
         if b & 1:
-            p ^= a
+            p ^= a  # acumula termo quando bit correspondente estiver ativo
         carry = a & 0x8
         a = (a << 1) & 0xF
         if carry:
-            a ^= 0x3
+            a ^= 0x3  # aplica reducao pelo polinomio irreducivel
         b >>= 1
     return p & 0xF
 
@@ -93,6 +95,7 @@ def rot_nib(byte: int) -> int:
 
 
 def state_from_word(word: int) -> List[List[int]]:
+    """Transforma um bloco de 16 bits em matriz 2x2 de nibbles."""
     return [
         [(word >> 12) & 0xF, (word >> 8) & 0xF],
         [(word >> 4) & 0xF, word & 0xF],
@@ -100,6 +103,7 @@ def state_from_word(word: int) -> List[List[int]]:
 
 
 def word_from_state(state: List[List[int]]) -> int:
+    """Converte a matriz 2x2 de nibbles de volta para inteiro de 16 bits."""
     return (
         (state[0][0] << 12)
         | (state[0][1] << 8)
@@ -109,18 +113,19 @@ def word_from_state(state: List[List[int]]) -> int:
 
 
 class SimplifiedAES:
-    """SAES implementation based on Stallings' definition."""
+    """Implementacao do SAES conforme a definicao classica de Stallings."""
 
-    block_size = 2  # bytes
+    block_size = 2  # tamanho em bytes
 
     def __init__(self, key: bytes):
         if len(key) != 2:
             raise ValueError("SAES requires a 16-bit key (2 bytes).")
         self.key = int.from_bytes(key, "big")
-        self.round_keys = self._key_schedule(self.key)
+        self.round_keys = self._key_schedule(self.key)  # gera as tres chaves de rodada
 
     @staticmethod
     def _key_schedule(key: int) -> Tuple[int, int, int]:
+        """Gera as tres subchaves de 16 bits usadas nas rodadas do SAES."""
         w0 = (key >> 8) & 0xFF
         w1 = key & 0xFF
         w2 = w0 ^ RCON[0] ^ sub_nib(rot_nib(w1))
@@ -134,11 +139,13 @@ class SimplifiedAES:
 
     @staticmethod
     def _sub_nibbles(state: List[List[int]], inverse: bool = False) -> List[List[int]]:
+        """Aplica S-Box (ou inversa) em cada nibble do estado."""
         lookup = INV_SBOX if inverse else SBOX
         return [[lookup[nibble] for nibble in row] for row in state]
 
     @staticmethod
     def _shift_rows(state: List[List[int]], inverse: bool = False) -> List[List[int]]:
+        """Rotaciona a segunda linha para introduzir dispersao."""
         top_row = state[0][:]
         bottom_row = state[1][:]
         if inverse:
@@ -151,6 +158,7 @@ class SimplifiedAES:
     def _mix_columns(
         state: List[List[int]], matrix: Tuple[Tuple[int, int], Tuple[int, int]]
     ) -> List[List[int]]:
+        """Mistura as colunas via multiplicacao matricial no campo GF(2^4)."""
         col0 = [state[0][0], state[1][0]]
         col1 = [state[0][1], state[1][1]]
         new_col0 = [
@@ -165,6 +173,7 @@ class SimplifiedAES:
 
     @staticmethod
     def _add_round_key(state: List[List[int]], round_key: int) -> List[List[int]]:
+        """Aplica XOR do estado com a subchave da rodada."""
         key_state = state_from_word(round_key)
         return [
             [
@@ -182,6 +191,7 @@ class SimplifiedAES:
             raise ValueError("Invalid block length.")
         word = int.from_bytes(block, "big")
         state = state_from_word(word)
+        # Estrutura: AddRoundKey -> (SubBytes, ShiftRows, MixColumns) -> AddRoundKey -> (SubBytes, ShiftRows) -> AddRoundKey
         state = self._add_round_key(state, self.round_keys[0])
         state = self._sub_nibbles(state)
         state = self._shift_rows(state)
@@ -198,6 +208,7 @@ class SimplifiedAES:
             raise ValueError("Invalid block length.")
         word = int.from_bytes(block, "big")
         state = state_from_word(word)
+        # Aplica a sequencia inversa das operacoes de cifragem
         state = self._add_round_key(state, self.round_keys[2])
         state = self._shift_rows(state, inverse=True)
         state = self._sub_nibbles(state, inverse=True)
@@ -211,6 +222,7 @@ class SimplifiedAES:
 
 
 def chunk_data(data: bytes, size: int) -> Iterable[bytes]:
+    """Divide um buffer em blocos do tamanho especificado."""
     if len(data) % size != 0:
         raise ValueError("Data length must be a multiple of block size.")
     for idx in range(0, len(data), size):
@@ -218,18 +230,20 @@ def chunk_data(data: bytes, size: int) -> Iterable[bytes]:
 
 
 def xor_bytes(a: bytes, b: bytes) -> bytes:
+    """Aplica XOR byte a byte entre duas sequencias."""
     return bytes(x ^ y for x, y in zip(a, b))
 
 
 @dataclass(frozen=True)
 class ModeConfig:
+    """Representa parametros essenciais de um modo de cifragem."""
     name: str
     iv: bytes | None = None
     counter: int = 0
 
 
 class SAESModeProcessor:
-    """Applies SAES encryption in different block cipher modes."""
+    """Aplica o SAES nos diferentes modos de operacao por blocos."""
 
     def __init__(self, key: bytes, config: ModeConfig):
         self.cipher = SimplifiedAES(key)
@@ -261,10 +275,10 @@ class SAESModeProcessor:
         prev = self.config.iv
         result = []
         for block in chunk_data(data, self.cipher.block_size):
-            xored = xor_bytes(block, prev)
+            xored = xor_bytes(block, prev)  # mistura bloco com IV/cifra anterior
             cipher_block = self.cipher.encrypt_block(xored)
             result.append(cipher_block)
-            prev = cipher_block
+            prev = cipher_block  # retroalimentacao
         return b"".join(result)
 
     def _cfb_encrypt(self, data: bytes) -> bytes:
@@ -273,7 +287,7 @@ class SAESModeProcessor:
         prev = self.config.iv
         output = []
         for block in chunk_data(data, self.cipher.block_size):
-            keystream = self.cipher.encrypt_block(prev)
+            keystream = self.cipher.encrypt_block(prev)  # gera fluxo usando cifra anterior
             cipher_block = xor_bytes(block, keystream)
             output.append(cipher_block)
             prev = cipher_block
@@ -285,7 +299,7 @@ class SAESModeProcessor:
         feedback = self.config.iv
         output = []
         for block in chunk_data(data, self.cipher.block_size):
-            feedback = self.cipher.encrypt_block(feedback)
+            feedback = self.cipher.encrypt_block(feedback)  # fluxo independente do texto claro
             output.append(xor_bytes(block, feedback))
         return b"".join(output)
 
@@ -296,11 +310,12 @@ class SAESModeProcessor:
             counter_block = counter.to_bytes(self.cipher.block_size, "big")
             keystream = self.cipher.encrypt_block(counter_block)
             output.append(xor_bytes(block, keystream))
-            counter = (counter + 1) & 0xFFFF
+            counter = (counter + 1) & 0xFFFF  # incrementa contador modular de 16 bits
         return b"".join(output)
 
 
 def shannon_entropy(image: np.ndarray) -> float:
+    """Calcula a entropia de Shannon (em bits) dos niveis de cinza."""
     histogram, _ = np.histogram(image.flatten(), bins=256, range=(0, 256))
     probabilities = histogram / histogram.sum()
     probabilities = probabilities[probabilities > 0]
@@ -308,6 +323,7 @@ def shannon_entropy(image: np.ndarray) -> float:
 
 
 def adjacent_correlation(image: np.ndarray, direction: str) -> float:
+    """Obtém correlacao entre pixels adjacentes em direcoes especificas."""
     if direction == "horizontal":
         x = image[:, :-1].flatten()
         y = image[:, 1:].flatten()
@@ -332,16 +348,19 @@ def adjacent_correlation(image: np.ndarray, direction: str) -> float:
 
 
 def npcr(original: np.ndarray, test: np.ndarray) -> float:
+    """Calcula o Percentage of Number of Pixels Change Rate entre duas imagens."""
     diff = np.not_equal(original, test)
     return float(diff.sum() * 100 / diff.size)
 
 
 def uaci(original: np.ndarray, test: np.ndarray) -> float:
+    """Calcula o Unified Average Changing Intensity (variacao media percentual)."""
     diff = np.abs(original.astype(np.float64) - test.astype(np.float64))
     return float(diff.sum() * 100 / (diff.size * 255))
 
 
 def save_histogram(original: np.ndarray, encrypted: np.ndarray, title: str, path: Path):
+    """Salva histograma comparando distribuicoes do original e cifrado."""
     path.parent.mkdir(parents=True, exist_ok=True)
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
     axes[0].hist(original.flatten(), bins=256, range=(0, 255), color="steelblue")
@@ -365,11 +384,13 @@ IMAGE_SPECS = [
     ("wildlife", "https://picsum.photos/seed/wildlife/256/256"),
     ("architecture", "https://picsum.photos/seed/architecture/256/256"),
     ("texture", "https://picsum.photos/seed/texture/256/256"),
-]  # Ten deterministic seeds to keep the dataset reproducible.
+]  # Dez imagens deterministicas para manter o conjunto reproduzivel.
 
 
 class ImageEncryptionExperiment:
+    """Orquestra o fluxo completo de preparo das imagens e avaliacao dos modos."""
     def __init__(self):
+        # Diretorios de trabalho e saida
         self.base_dir = Path(__file__).parent
         self.data_dir = self.base_dir / "data"
         self.source_dir = self.data_dir / "source"
@@ -382,6 +403,7 @@ class ImageEncryptionExperiment:
         self.size = (256, 256)
         key_hex = "3A94"
         self.key = bytes.fromhex(key_hex)
+        # Configuracao fixa dos modos utilizados no experimento
         self.mode_configs: Dict[str, ModeConfig] = {
             "ECB": ModeConfig("ECB"),
             "CBC": ModeConfig("CBC", iv=bytes.fromhex("BEEF")),
@@ -391,6 +413,7 @@ class ImageEncryptionExperiment:
         }
 
     def prepare_environment(self):
+        """Garante que toda a estrutura de diretorios exista antes do processamento."""
         for directory in [
             self.source_dir,
             self.prepared_dir,
@@ -401,6 +424,7 @@ class ImageEncryptionExperiment:
             directory.mkdir(parents=True, exist_ok=True)
 
     def download_images(self):
+        """Baixa e normaliza as dez imagens caso ainda nao existam."""
         for name, url in IMAGE_SPECS:
             final_path = self.prepared_dir / f"{name}.png"
             if final_path.exists():
@@ -420,6 +444,7 @@ class ImageEncryptionExperiment:
         return images
 
     def run(self):
+        """Executa todo o pipeline: prepara, cifra, mede e salva resultados."""
         self.prepare_environment()
         self.download_images()
         images = self.load_images()
@@ -457,6 +482,7 @@ class ImageEncryptionExperiment:
 
     @staticmethod
     def _encrypt_array(processor: SAESModeProcessor, array: np.ndarray) -> np.ndarray:
+        """Aplica o modo desejado a uma matriz numpy tratando-a como fluxo de bytes."""
         data = array.tobytes()
         encrypted_bytes = processor.encrypt(data)
         encrypted_arr = np.frombuffer(encrypted_bytes, dtype=np.uint8).reshape(array.shape)
@@ -471,6 +497,7 @@ class ImageEncryptionExperiment:
         processor: SAESModeProcessor,
         delta: int,
     ) -> Dict[str, float | str]:
+        """Calcula todas as metricas de seguranca para uma imagem/modo."""
         altered = original.copy()
         center = (altered.shape[0] // 2, altered.shape[1] // 2)
         altered_val = int(altered[center])
@@ -490,6 +517,7 @@ class ImageEncryptionExperiment:
         return record
 
     def _save_markdown_summary(self, df: pd.DataFrame):
+        """Gera resumo estatistico dos modos e inclui observacoes qualitativas."""
         self.summary_path.parent.mkdir(parents=True, exist_ok=True)
         averages = (
             df.groupby("mode")
@@ -504,7 +532,7 @@ class ImageEncryptionExperiment:
             .reset_index()
         )
         with self.summary_path.open("w", encoding="utf-8") as md:
-            md.write("# Simplified AES Image Encryption Metrics\n\n")
+            md.write("# Metricas de Cifragem com SAES\n\n")
             md.write("Este relatorio sumariza as metricas obtidas para cada modo de operacao do SAES.\n\n")
             md.write("## Medias por modo\n\n")
             md.write(averages.to_markdown(index=False))
