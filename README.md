@@ -14,16 +14,21 @@ Este documento resume a abordagem, implementação e análise empregadas para ci
 ## Estrutura do Projeto
 ```
 .
-├── aes.py                # Implementação do SAES, modos, pipeline de imagens e cálculo das métricas
-├── requirements.txt      # Dependências Python
-├── report.md             # Este relatório
+├── README.md                             # Este relatório
+├── report.md                             # Relatório analítico estendido (mesmo conteúdo base)
+├── aes.py                                # Implementação do SAES, modos, pipeline de imagens e cálculo das métricas
+├── requirements.txt                      # Dependências Python
+├── figures/                              # Exemplos de imagens e histogramas usados no README
 ├── data/
-│   └── prepared/         # 10 imagens 256x256 em escala de cinza (baixadas automaticamente)
-└── outputs/
-    ├── encrypted/<modo>/ # Imagens cifradas por modo
-    ├── histograms/       # Histogramas antes/depois por imagem e modo
-    ├── metrics_saes.csv  # Métricas detalhadas por imagem e modo
-    └── metrics_summary.md# Médias por modo + notas interpretativas
+│   └── prepared/                         # 10 imagens 256x256 em escala de cinza (baixadas automaticamente)
+├── outputs/
+│   ├── encrypted/<modo>/                 # Imagens cifradas por modo
+│   ├── histograms/                       # Histogramas antes/depois por imagem e modo
+│   ├── metrics_saes.csv                  # Métricas detalhadas por imagem e modo
+│   └── metrics_summary.md                # Médias por modo + notas interpretativas
+├── Image encryption using block cipher and chaotic sequences.pdf
+├── Linear Cryptoanalysis of the Simplified AES Cipher Modified by Chaotic Sequences.pdf
+└── On the vulnerability of Simplified AES Algorithm Against Linear Cryptanalysis.pdf
 ```
 
 ## Implementação (resumo do `aes.py`)
@@ -87,7 +92,7 @@ Essas evidências reforçam os números da tabela anterior: modos com realimenta
 1. **Entropia**: CBC, CFB e CTR alcançaram valores médios muito próximos de 8 bits, confirmando distribuição quase uniforme de pixels cifrados. ECB ficou abaixo, revelando que blocos idênticos ainda produzem padrões visíveis devido ao pequeno tamanho de bloco do SAES (16 bits).
 2. **Correlação**:
    - **CBC/CFB**: coeficientes horizontais/verticais próximos de zero, indicando perda da dependência linear entre pixels adjacentes.
-   - **CTR**: entropia alta, mas correlação vertical ≈ 0.46. A combinação do modo CTR com blocos de 2 bytes facilita a preservação de padrões lineares (mesma stream key para pares consecutivos), deixando estruturas verticais reconhecíveis.
+   - **CTR**: entropia alta, mas correlação vertical ≈ 0.46. Como o SAES gera um fluxo pseudoaleatório com difusão limitada (apenas 16 bits por contador), blocos adjacentes recebem keystreams fortemente correlacionados, preservando padrões verticais mesmo sem reutilizar exatamente a mesma chave de fluxo.
    - **ECB**: correlação vertical ≈ 0.21, reforçando a baixa difusão do modo em ciphers com blocos curtos.
 3. **NPCR/UACI**:
    - CBC/CFB alcançaram NPCR ~47% e UACI ~8.85%, demonstrando boa sensibilidade a pequenas variações na imagem original. Esses valores, embora menores do que os típicos de AES real (≈99% e ≈33%), são coerentes com a limitação estrutural do SAES descrita nos artigos 2 e 3.
